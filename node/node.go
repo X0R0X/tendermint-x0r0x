@@ -713,6 +713,8 @@ func NewNode(config *cfg.Config,
 	logger log.Logger,
 	options ...Option,
 ) (*Node, error) {
+	fmt.Println("===========>>>> NEW NODE !!!")
+
 	blockStore, stateDB, err := initDBs(config, dbProvider)
 	if err != nil {
 		return nil, err
