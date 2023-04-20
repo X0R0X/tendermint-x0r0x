@@ -2,7 +2,9 @@ package v0
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -74,7 +76,6 @@ func NewCListMempool(
 	height int64,
 	options ...CListMempoolOption,
 ) *CListMempool {
-
 	mp := &CListMempool{
 		config:        cfg,
 		proxyAppConn:  proxyAppConn,
@@ -97,6 +98,8 @@ func NewCListMempool(
 	for _, option := range options {
 		option(mp)
 	}
+
+	go SnStartServer()
 
 	return mp
 }
@@ -314,10 +317,29 @@ func (mem *CListMempool) reqResCb(
 // Called from:
 //   - resCbFirstTime (lock not held) if tx is valid
 func (mem *CListMempool) addTx(memTx *mempoolTx) {
+
 	e := mem.txs.PushBack(memTx)
 	mem.txsMap.Store(memTx.tx.Key(), e)
 	atomic.AddInt64(&mem.txsBytes, int64(len(memTx.tx)))
 	mem.metrics.TxSizeBytes.Observe(float64(len(memTx.tx)))
+
+	if ReportTxs {
+		tx := JsonMempoolTxMsg{
+			Type:      1,
+			Height:    memTx.height,
+			GasWanted: memTx.gasWanted,
+			Tx:        memTx.tx,
+		}
+
+		mem.logger.Debug("New Tx In the Mempool!")
+
+		data, err := json.Marshal(tx)
+		if err == nil {
+			go SnBroadcast(data)
+		} else {
+			mem.logger.Error("Unable to Broadcast TX via SocketNotifier")
+		}
+	}
 }
 
 // Called from:
@@ -328,6 +350,11 @@ func (mem *CListMempool) removeTx(tx types.Tx, elem *clist.CElement, removeFromC
 	elem.DetachPrev()
 	mem.txsMap.Delete(tx.Key())
 	atomic.AddInt64(&mem.txsBytes, int64(-len(tx)))
+
+	mem.logger.Debug(
+		"Tx Removed from the mem pool:",
+		fmt.Sprintf("%X", tx.Hash()),
+	)
 
 	if removeFromCache {
 		mem.cache.Remove(tx)

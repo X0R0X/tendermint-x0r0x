@@ -3,17 +3,18 @@ package state
 import (
 	"errors"
 	"fmt"
-	"time"
-
 	abci "github.com/tendermint/tendermint/abci/types"
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
 	"github.com/tendermint/tendermint/libs/fail"
+	"github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
 	mempl "github.com/tendermint/tendermint/mempool"
+	v0 "github.com/tendermint/tendermint/mempool/v0"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
+	"time"
 )
 
 //-----------------------------------------------------------------------------
@@ -247,6 +248,20 @@ func (blockExec *BlockExecutor) Commit(
 		TxPreCheck(state),
 		TxPostCheck(state),
 	)
+
+	if v0.ReportBlocks {
+		tx := v0.JsonNewBlockMsg{
+			Type:   2,
+			Height: block.Height,
+			Txs:    block.Txs,
+		}
+		data, err := json.Marshal(tx)
+		if err == nil {
+			v0.SnBroadcast(data)
+		} else {
+			blockExec.logger.Error("Error during marshalling JsonNewBlockMsg")
+		}
+	}
 
 	return res.Data, res.RetainHeight, err
 }
