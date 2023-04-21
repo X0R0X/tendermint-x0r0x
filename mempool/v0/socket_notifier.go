@@ -32,8 +32,15 @@ type JsonNewBlockMsg struct {
 }
 
 var manager ClientManager
-var ReportTxs bool = true
-var ReportBlocks bool = false
+
+// ReportTxs Report Transactions as soon as they're included in the mempool
+const ReportTxs bool = true
+
+// ReportBlocks Report New Blocks as soon as our node is notified
+const ReportBlocks bool = true
+
+// ReportIncludeTxsInBlock Include Raw Txs that were included in the block
+const ReportIncludeTxsInBlock bool = false
 
 func (manager *ClientManager) start() {
 	for {

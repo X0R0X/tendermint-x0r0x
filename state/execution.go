@@ -249,11 +249,21 @@ func (blockExec *BlockExecutor) Commit(
 		TxPostCheck(state),
 	)
 
+	var tx v0.JsonNewBlockMsg
+
 	if v0.ReportBlocks {
-		tx := v0.JsonNewBlockMsg{
-			Type:   2,
-			Height: block.Height,
-			Txs:    block.Txs,
+		if v0.ReportIncludeTxsInBlock {
+			tx = v0.JsonNewBlockMsg{
+				Type:   2,
+				Height: block.Height,
+				Txs:    block.Txs,
+			}
+		} else {
+			tx = v0.JsonNewBlockMsg{
+				Type:   2,
+				Height: block.Height,
+				Txs:    nil,
+			}
 		}
 		data, err := json.Marshal(tx)
 		if err == nil {
